@@ -24,7 +24,7 @@ process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(${events}),
+    input = cms.untracked.int32(10300),
     output = cms.optional.untracked.allowed(cms.int32,cms.PSet)
 )
 
@@ -130,7 +130,7 @@ from Configuration.StandardSequences.earlyDeleteSettings_cff import customiseEar
 process = customiseEarlyDelete(process)
 # End adding early deletion
 
-process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
+process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDAPhase1",
     CAThetaCutBarrel = cms.double(0.0020000000949949026),
     CAThetaCutForward = cms.double(0.003000000026077032),
     dcaCutInnerTriplet = cms.double(0.15000000596046448),
@@ -173,7 +173,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_connect_threads * 32}, ${kernel_connect_stride * 2}),
+                threads = cms.vuint32(64, 4),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -200,7 +200,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${finalizeBulk * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -209,7 +209,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_fillHitDetIndices * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -218,7 +218,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_fillNLayers * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -227,7 +227,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_earlyDuplicateRemover * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -236,7 +236,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_countMultiplicity * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -245,7 +245,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_fillMultiplicity * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -254,7 +254,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${initDoublets * 32}),
+                threads = cms.vuint32(128),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -263,7 +263,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(0, ${getDoubletsFromHisto_stride * 2}),
+                threads = cms.vuint32(0, 4),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -272,7 +272,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_classifyTracks * 32}),
+                threads = cms.vuint32(64),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -281,7 +281,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_fishboneCleaner * 32}),
+                threads = cms.vuint32(64),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -290,7 +290,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_fastDuplicateRemover * 32}),
+                threads = cms.vuint32(64),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -299,7 +299,7 @@ process.pixelTracksCUDA = cms.EDProducer("CAHitNtupletCUDA",
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${kernel_BLFastFit * 32}),
+                threads = cms.vuint32(64),
                 blocks = cms.vuint32(0),
                 ),
             ),
@@ -336,7 +336,7 @@ process.siPixelClustersPreSplittingCUDA = cms.EDProducer("SiPixelRawToClusterCUD
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${RawToDigi_kernel * 32}),
+                threads = cms.vuint32(512),
                 blocks = cms.vuint32(0),
             ),
         ),
@@ -345,7 +345,7 @@ process.siPixelClustersPreSplittingCUDA = cms.EDProducer("SiPixelRawToClusterCUD
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${calibDigis * 32}),
+                threads = cms.vuint32(256),
                 blocks = cms.vuint32(0),
             ),
         ),
@@ -354,7 +354,7 @@ process.siPixelClustersPreSplittingCUDA = cms.EDProducer("SiPixelRawToClusterCUD
             cms.PSet(
                 # on an NVIDIA T4
                 device = cms.string('cuda/sm_75/T4'),
-                threads = cms.vuint32(${countModules * 32}),
+                threads = cms.vuint32(256),
                 blocks = cms.vuint32(0),
             ),
         ),
@@ -379,7 +379,7 @@ process.siPixelClustersPreSplittingCUDA = cms.EDProducer("SiPixelRawToClusterCUD
     )
 )
 
-process.siPixelRecHitsPreSplittingCUDA = cms.EDProducer("SiPixelRecHitCUDA",
+process.siPixelRecHitsPreSplittingCUDA = cms.EDProducer("SiPixelRecHitCUDAPhase1",
     CPE = cms.string('PixelCPEFast'),
     beamSpot = cms.InputTag("offlineBeamSpotToCUDA"),
     mightGet = cms.optional.untracked.vstring,
