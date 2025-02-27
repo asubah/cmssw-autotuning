@@ -6,15 +6,12 @@ The project introduces the following:
 - An autotuning interface that leverages the CMSSW configuration files to autotune the GPU kernels ([branch](https://github.com/asubah/cmssw/tree/autotuning-interface)).
 - An autotuning framework based on [OpenTuner](https://github.com/jansel/opentuner).
 
+---
 ## Autotuning Interface
 
 This section details the public methods of the `KernelConfigurations` header file, which acts as the autotuning interface for CMSSW. Examples are provided to illustrate usage.
 
----
-
-### Constructor
-
-https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L47
+### [Constructor](https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L47)
 
 Initializes kernel configurations from a ParameterSet containing a "kernels" key. This key must map to a PSet where each entry is a kernel name paired with a VPSet of device-specific configurations.
 Example Usage in an EDProducer
@@ -29,9 +26,7 @@ public:
         : kernelConfigs_(config.getParameter<edm::ParameterSet>("kernels")) {  }
 ```
 
-### getConfigsForDevice
-
-https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L50
+### [getConfigsForDevice](https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L50)
 
 Retrieves kernel launch configurations for a specific device or device architecture (e.g., "cuda", "cuda/sm\_75", "rocm", "cpu").
 
@@ -82,27 +77,23 @@ void MyProducer::produce(edm::Event& event, const edm::EventSetup& setup) {
 }
 ```
 
-### getConfig
+### [getConfig](https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L26)
 
 Retrieves the launch configuration for a specific kernel.
 
-https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L26
-
 ```cpp
-    auto cudaConfigs = kernelConfigs_.getConfigsForDevice("cuda");  
+auto cudaConfigs = kernelConfigs_.getConfigsForDevice("cuda");  
 
-    // Retrieve configuration for "clusterKernel"  
-    const auto& kernelConfig = cudaConfigs.getConfig("clusterKernel");
+// Retrieve configuration for "clusterKernel"  
+const auto& kernelConfig = cudaConfigs.getConfig("clusterKernel");
 
-    // Launch kernel with configuration
-    clusterKernel<<<kernelConfig.blocks, kernelConfig.threads>>>();
+// Launch kernel with configuration
+clusterKernel<<<kernelConfig.blocks, kernelConfig.threads>>>();
 ```
 
-### fillBasicDescriptions
+### [fillBasicDescriptions](https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L64)
 
 Generates a basic `ParameterSetDescription` with default values for kernels.
-
-https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L64
 
 Example:
 ```cpp
@@ -115,17 +106,17 @@ cms::KernelConfigurations::fillBasicDescriptions(desc, kernels);
 
 Configuration in Python:
 ```python
-    kernels = cms.PSet(
-        kernelA = cms.VPSet(cms.PSet(
-            device = cms.string(""),  # Matches any device
-            threads = cms.vuint32(1),
-            blocks = cms.vuint32(1)
-        )),
-        kernelB = cms.VPSet(...)  # Same structure
-    )
+kernels = cms.PSet(
+    kernelA = cms.VPSet(cms.PSet(
+        device = cms.string(""),  # Matches any device
+        threads = cms.vuint32(1),
+        blocks = cms.vuint32(1)
+    )),
+    kernelB = cms.VPSet(...)  # Same structure
+)
 ```
 
-### fillDetailedDescriptions
+### [fillDetailedDescriptions](https://github.com/asubah/cmssw/blob/35d5aff43decb3020615e7ceb488fc1c54e5093c/HeterogeneousCore/KernelConfigurations/interface/KernelConfigurations.h#L76)
 
 Generates a detailed ParameterSetDescription with constraints (e.g., minThreads, maxBlocks).
 
@@ -149,20 +140,18 @@ cms::KernelConfigurations::fillDetailedDescriptions(desc, kernels);
 
 Configuration in Python:
 ```python
-    kernels = cms.PSet(
-        exampleKernel = cms.VPSet(cms.PSet(
-            device = cms.string(""),
-            threads = cms.vuint32(64, 1, 1),
-            blocks = cms.vuint32(256, 1, 1),
-            minThreads = cms.vuint32(32, 1, 1),
-            maxThreads = cms.vuint32(128, 1, 1),
-            minBlocks = cms.vuint32(40, 1, 1),
-            maxBlocks = cms.vuint32(400, 1, 1)
-        ))
-    )
+kernels = cms.PSet(
+    exampleKernel = cms.VPSet(cms.PSet(
+        device = cms.string(""),
+        threads = cms.vuint32(64, 1, 1),
+        blocks = cms.vuint32(256, 1, 1),
+        minThreads = cms.vuint32(32, 1, 1),
+        maxThreads = cms.vuint32(128, 1, 1),
+        minBlocks = cms.vuint32(40, 1, 1),
+        maxBlocks = cms.vuint32(400, 1, 1)
+    ))
+)
 ```
-
-## Configuration Files
 
 ## Autotuning Framework
 
