@@ -316,7 +316,7 @@ The timing results can be accessed using direct SQL queries, but the configurati
 
 ## Results
 
-These are results from an autotuning experiment on different GPUs:
+These are results (events / seconds) from an autotuning experiment on different GPUs:
 
 | GPU | Baseline | Tuned |
 | :----------- | ------: | -----: |
