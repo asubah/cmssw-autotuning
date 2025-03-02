@@ -1,0 +1,11 @@
+# Core autotuning framework
+opentuner>=0.8.0
+
+# Template engine for configuration generation
+mako>=1.2.0
+
+# Database interaction
+sqlalchemy>=1.4.0
+
+# Utilities
+argparse>=1.4.0

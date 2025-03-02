@@ -155,5 +155,172 @@ kernels = cms.PSet(
 
 ## Autotuning Framework
 
+The autotuning framework is built on [OpenTuner](https://github.com/jansel/opentuner) to optimize CMSSW GPU kernel configurations. This section describes the implementation of the `cmssw_tuner.py` script.
+
+### Implementation Overview
+
+The autotuner is implemented as a custom `MeasurementInterface` class that extends OpenTuner's framework. The key components include:
+
+1. **Parameter Space Definition**: Defines the search space for optimization
+2. **Configuration Generation**: Creates CMSSW configurations with different parameter values
+3. **Benchmark Execution**: Runs CMSSW with the generated configurations
+4. **Performance Evaluation**: Measures throughput and updates the search strategy
+
+### Implementation Details
+
+#### 1. Parameter Definition
+
+The `manipulator()` method defines the search space by specifying all tunable parameters with their ranges:
+
+```python
+def manipulator(self):
+    manipulator = ConfigurationManipulator()
+    manipulator.add_parameter(IntegerParameter("number_of_jobs", 1, 4))
+    manipulator.add_parameter(IntegerParameter("number_of_cpu_threads", 1, 32))
+    # Additional kernel-specific parameters
+    manipulator.add_parameter(IntegerParameter("fishbone_threads", 1, 32))
+    manipulator.add_parameter(IntegerParameter("fishbone_stride", 1, 8))
+    # ... other parameters
+    return manipulator
+```
+
+Each parameter corresponds to a value that will be used in the CMSSW configuration.
+
+It is possible to use `edmPluginHelp` to get the list of available parameters and their boundaries for a specific module. 
+
+```bash
+edmPluginHelp --plugin SiPixelRawToClusterPhase1@alpaka --brief
+```
+
+Sample output:
+```
+Section 1.1.2 kernels PSet description:                        
+    RawToDigi_kernel VPSet  see Section 1.1.2.1                                                                                                                 
+Section 1.1.2.1 RawToDigi_kernel VPSet description:                                                                                                   
+    All elements will be validated using the PSet description in Section 1.1.2.1.1.                                                                   
+    The default VPSet has 1 element.                                                                                                                      
+    [0]: see Section 1.1.2.1.2                                                                                                                         
+Section 1.1.2.1.1 description of PSet used to validate elements of VPSet:
+    device     string   ''                                                                                                                             
+    threads    vuint32  (vector size = 1)                   
+      [0]: 64                                                             
+    blocks     vuint32  (vector size = 1)                                
+      [0]: 0                                                           
+    minThreads vuint32  (vector size = 1)                                
+      [0]: 32                                                                 
+    maxThreads vuint32  (vector size = 1)                                
+      [0]: 512                                  
+         minBlocks  vuint32  (vector size = 1)
+      [0]: 0
+    maxBlocks  vuint32  (vector size = 1)
+      [0]: 0
+```
+
+#### 2. Template-Based Configuration Generation
+
+The autotuner uses Mako templates to generate CMSSW configurations. The `output_cmssw_config_file()` method renders the template with parameter values:
+
+```python
+def output_cmssw_config_file(self, params):
+    params["events"] = self.args.events
+    from mako.template import Template
+    template = Template(filename="hltMenuReduce.py.mako")
+    with open("step3_RAW2DIGI_RECO.py", "w") as f:
+        f.write(template.render(**params))
+```
+
+The template syntax allows direct substitution of optimization parameters, enabling complex kernel configurations.
+
+An example template snippet:
+```python
+Kernel_find_ntuplets = cms.VPSet(                                                                                                                                     
+  cms.PSet(                                                                                                                                                         
+    blocks = cms.vuint32(0),                                                                                                                                        
+    device = cms.string('.'),                                                                                                                                       
+    threads = cms.vuint32(${Kernel_find_ntuplets * 32}) # Parameter substitution                                                                                            
+    ),                                                                                                                                                              
+  ),
+```
+
+#### 3. Performance Measurement
+
+The `run()` method executes CMSSW with the current parameter set and measures performance:
+
+```python
+def run(self, desired_result, input, limit):
+    cfg = desired_result.configuration.data
+    self.output_cmssw_config_file(cfg)
+    
+    # Execute benchmark command
+    cmd = [base_path + "patatrack-scripts/benchmark",
+           self.args.cmssw_config,
+           # ... command line arguments with current parameters
+          ]
+    subprocess.run(cmd, encoding='UTF-8', capture_output=True)
+    
+    # Parse results
+    result = open(base_path + "benchmark_results", 'r').readlines()[-1].split(',')
+    throughput = float(result[-2].strip())
+    time = (int(self.args.events) - 300) / throughput
+    
+    return opentuner.resultsdb.models.Result(time=time)
+```
+
+The autotuner inverts throughput to create a "time" metric, as OpenTuner by default minimizes this value.
+
+### Results Database
+
+OpenTuner automatically stores all tuning results in an SQLite database (default filename: `opentuner.db`). This database contains information about:
+
+- All tested configurations
+- Measured performance for each configuration
+- Search technique decisions
+- Timing information
+
+The main tables in the database include:
+
+- `configuration`: Stores parameter values for each tested configuration
+- `desired_result`: Contains requests for evaluations
+- `result`: Stores performance measurements
+- `technique`: Records which search techniques were used
+
+#### Accessing the Results
+
+The timing results can be accessed using direct SQL queries, but the configuration are stored as binary blobs ([Pickle](https://github.com/jansel/opentuner/blob/ed92a56197a2cb4c7a0203150f6976d7f3506507/opentuner/resultsdb/models.py#L19)). To access them it is easier to use the OpenTuner API.
+
+1. **Direct SQL Queries**: Query the database directly using SQLite tools:
+
+   ```bash
+   sqlite3 opentuner.db "SELECT * FROM result ORDER BY time LIMIT 10;"
+   ```
+
+3. **OpenTuner API**: Use OpenTuner's built-in results interface:
+
+   ```python
+   from opentuner.resultsdb.models import *
+   from opentuner.resultsdb import connect
+   
+   # Connect to the database
+   session = connect("sqlite:///opentuner.db")
+   
+   # Query the best configuration
+   best = session.query(Result).order_by(Result.time).first()
+   best_config = best.configuration.data
+   
+   print("Best configuration:")
+   for param, value in best_config.items():
+       print(f"{param}: {value}")
+       
+   print(f"Throughput: {1/best.time} events/s")
+   ```
+
 ## Results
 
+These are results from an autotuning experiment on different GPUs:
+
+| GPU | Baseline | Tuned |
+| :----------- | ------: | -----: |
+| T4 | 241.740 | 247.160 |
+| A10 | 430.030 | 463.478 |
+| L4 | 526.100 | 553.986 |
+| L40S | 903.050 | 924.129 |

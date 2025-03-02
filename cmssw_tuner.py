@@ -4,11 +4,17 @@ import opentuner
 from opentuner.measurement import MeasurementInterface
 from opentuner.search.manipulator import (ConfigurationManipulator,
                                           IntegerParameter)
+import BasinHopping
+import BayesianOptimization
 
 parser = argparse.ArgumentParser(parents=opentuner.argparsers())
 
 parser.add_argument('--cmssw-config', type=str, 
                     help='location of cmssw config file')
+parser.add_argument('--config-template', type=str, 
+                    help='location of cmssw config template file')
+parser.add_argument('--base-dir', type=str, 
+                    help='base directory')
 parser.add_argument('--events', type=str, default="10300",
                     help='number of events per cmsRun job')
 parser.add_argument('--repeats', type=str, default="3",
@@ -24,40 +30,40 @@ class CMSSWTuner(MeasurementInterface):
         # TODO use subprocess to run CMSSW benchmark
         # val = self.get_time_from_hpl_output()
         cfg = desired_result.configuration.data
-        print(cfg)
         self.output_cmssw_config_file(cfg)
-        
-        base_path = "/data/user/abmohame/CMSSW_12_6_0/run/"
 
         import subprocess
-        cmd = [base_path + "patatrack-scripts/benchmark",
+        cmd = [self.args.base_dir + "/patatrack-scripts/benchmark",
                self.args.cmssw_config,
-               "-r", self.args.repeats,
-               "-e", self.args.events,
-               "-j", str(cfg["number_of_jobs"] * 2),
-               "-t", str(cfg["number_of_cpu_threads"] * 2),
-               "-s", str(cfg["number_of_streams"] * 2),
+               "--repeats", self.args.repeats,
+               "--events", self.args.events,
+               "--jobs", "1",
+               "--threads", "32",
+               "--streams", "24",
                "--no-warmup",
-               "--no-io-benchmark",
-               "--logdir", base_path + "benchmark_logs",
-               "--benchmark-results", base_path + "benchmark_results"]
+               "--no-run-io-benchmark",
+               "--logdir", self.args.base_dir + "/benchmark_logs",
+               "--benchmark-results", self.args.base_dir + "/benchmark_results"]
 
-        print(cmd)
-        subprocess.run(cmd, encoding='UTF-8', capture_output=True)
+        result = subprocess.run(cmd, encoding='UTF-8', capture_output=True)
+        print(result.stdout)
+        print(result.stderr)
 
-        result = open(base_path + "benchmark_results", 'r').readlines()[-1].split(',')
+        result = open(self.args.base_dir + "/benchmark_results", 'r').readlines()[-1].split(',')
+        print(result)
+        print(cfg)
         
         overlapped = 0
         throughput = 0
         error = 0
         time = float('inf')
         try:
-            overlapped = int(result[1].strip())
+            overlapped = float(result[1].strip())
             throughput = float(result[-2].strip())
             error = float(result[-1].strip())
-            time = 1 / throughput
-        except:
-            print('invalid config')
+            time = (int(self.args.events) - 300) / throughput
+        except Exception as e:
+            print(f'invalid config: {e}')
 
         print(throughput, time)
         cfg["throughput"] = throughput
@@ -66,43 +72,47 @@ class CMSSWTuner(MeasurementInterface):
 
     def manipulator(self):
         manipulator = ConfigurationManipulator()
-        manipulator.add_parameter(IntegerParameter("number_of_jobs", 1, 4))
-        manipulator.add_parameter(IntegerParameter("number_of_cpu_threads", 1, 32))
-        manipulator.add_parameter(IntegerParameter("number_of_streams", 1, 24))
-        manipulator.add_parameter(IntegerParameter("kernel_connect_threads", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_connect_stride", 1, 8))
-        manipulator.add_parameter(IntegerParameter("fishbone_threads", 1, 32))
-        manipulator.add_parameter(IntegerParameter("fishbone_stride", 1, 8))
-        manipulator.add_parameter(IntegerParameter("kernel_find_ntuplets", 1, 32))
-        manipulator.add_parameter(IntegerParameter("finalizeBulk", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_fillHitDetIndices", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_fillNLayers", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_earlyDuplicateRemover", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_countMultiplicity", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_fillMultiplicity", 1, 32))
-        manipulator.add_parameter(IntegerParameter("initDoublets", 1, 32))
-        manipulator.add_parameter(IntegerParameter("getDoubletsFromHisto_stride", 1, 8))
-        manipulator.add_parameter(IntegerParameter("kernel_classifyTracks", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_fishboneCleaner", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_fastDuplicateRemover", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_BLFastFit", 1, 32))
-        manipulator.add_parameter(IntegerParameter("kernel_BLFit", 1, 32))
-        manipulator.add_parameter(IntegerParameter("RawToDigi_kernel", 1, 32))
-        manipulator.add_parameter(IntegerParameter("calibDigis", 1, 32))
-        manipulator.add_parameter(IntegerParameter("countModules", 1, 32))
-        manipulator.add_parameter(IntegerParameter("findClus", 1, 32))
-        manipulator.add_parameter(IntegerParameter("clusterChargeCut", 1, 32))
-        manipulator.add_parameter(IntegerParameter("getHits", 1, 32))
+        # manipulator.add_parameter(IntegerParameter("number_of_jobs", 1, 4))
+        # manipulator.add_parameter(IntegerParameter("number_of_cpu_threads", 2, 16))
+        # manipulator.add_parameter(IntegerParameter("number_of_streams", 2, 12))
+        manipulator.add_parameter(IntegerParameter("RawToDigi_kernel", 1, 16))
+        manipulator.add_parameter(IntegerParameter("CalibDigis", 1, 16))
+        manipulator.add_parameter(IntegerParameter("CountModules", 1, 16))
+        manipulator.add_parameter(IntegerParameter("FindClus", 1, 16))
+        manipulator.add_parameter(IntegerParameter("ClusterChargeCut", 1, 16))
+        manipulator.add_parameter(IntegerParameter("GetHits", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_BLFastFit_3", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_BLFit_3", 1, 10))
+        manipulator.add_parameter(IntegerParameter("Kernel_BLFastFit_4", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_BLFit_4", 1, 10))
+        manipulator.add_parameter(IntegerParameter("Kernel_connect", 1, 16))
+        manipulator.add_parameter(IntegerParameter("CAFishbone", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_find_ntuplets", 1, 16))
+        manipulator.add_parameter(IntegerParameter("finalizeBulk", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_fillHitDetIndices", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_fillNLayers", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_earlyDuplicateRemover", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_countMultiplicity", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_fillMultiplicity", 1, 16))
+        manipulator.add_parameter(IntegerParameter("InitDoublets", 1, 16))
+        manipulator.add_parameter(IntegerParameter("GetDoubletsFromHisto", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_classifyTracks", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_fastDuplicateRemover", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_countHitInTracks", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_fillHitInTracks", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_rejectDuplicate", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_sharedHitCleaner", 1, 16))
+        manipulator.add_parameter(IntegerParameter("Kernel_simpleTripletCleaner", 1, 16))
+        manipulator.add_parameter(IntegerParameter("LoadTracks", 1, 16))
 
         return manipulator
 
     def output_cmssw_config_file(self, params):
         params["events"] = self.args.events
         from mako.template import Template
-        template = Template(filename="step3_RAW2DIGI_RECO.py.mako")
-        with open("step3_RAW2DIGI_RECO.py", "w") as f:
+        template = Template(filename=self.args.config_template)
+        with open(self.args.cmssw_config, "w") as f:
             f.write(template.render(**params))
-
 
 
 if __name__ == '__main__':
