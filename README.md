@@ -324,3 +324,5 @@ These are results (events / seconds) from an autotuning experiment on different 
 | A10 | 430.030 | 463.478 |
 | L4 | 526.100 | 553.986 |
 | L40S | 903.050 | 924.129 |
+
+For more information, refer to the [full thesis](https://cds.cern.ch/record/2925698).
